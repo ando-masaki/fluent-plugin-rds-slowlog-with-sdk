@@ -158,7 +158,7 @@ class Fluent::RdsSlowlogWithSdkInput < Fluent::Input
         :message => {
           :Time    => Time.at(timestamp).strftime('%Y-%m-%d %H:%M:%S %:z'),
           :Method  => 'AWS::RDS::Client.download_db_log_file_portion',
-	  :Params  => @params,
+          :Params  => @params,
           :Message => e.message,
         }.to_json,
       })
