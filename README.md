@@ -8,6 +8,7 @@
 - Set the `slow_query_log` parameter to `1`
 - setting `min_examined_row_limit`
 - setting `long_query_time`
+- Set the `log-output` parameter to `FILE`
 
 ## Overview
 ***AWS RDS slow_log with SDK*** input plugin.  
