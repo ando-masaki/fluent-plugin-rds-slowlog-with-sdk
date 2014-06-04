@@ -32,6 +32,7 @@ every 10 seconds from AWS RDS.
   offset                 [Offset From UTC]
   duration_sec           [Duration Seconds To Watch Slow Log File]
   pos_file               [Position File Path (Default /tmp/rds-slowlog-with-sdk-[tag].pos)]
+  sns_topic_arn          [SNS Topic Arn For Exception Occured]]
 </source>
 ```
 
@@ -49,6 +50,7 @@ every 10 seconds from AWS RDS.
   timezone               Asia/Tokyo
   offset                 +09:00
   duration_sec           10
+  sns_topic_arn          arn:aws:sns:ap-northeast-1:XXXXXXXXXXXX:sns-topic-arn
 </source>
 
 <match rds-slowlog-with-sdk>
