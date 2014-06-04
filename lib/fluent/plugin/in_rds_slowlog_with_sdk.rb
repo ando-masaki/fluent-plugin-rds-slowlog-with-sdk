@@ -126,12 +126,12 @@ class Fluent::RdsSlowlogWithSdkInput < Fluent::Input
 
   def output
     init_marker
-    $params = {
+    @params = {
       :db_instance_identifier => @db_instance_identifier,
       :log_file_name          => @log_file_name,
       :marker                 => @marker,
     }
-    responce = @rds_client.download_db_log_file_portion($params)
+    responce = @rds_client.download_db_log_file_portion(@params)
     unless responce[:log_file_data].nil?
       slow_log_data = @parser.parse(responce[:log_file_data])
       slow_log_data.each do |row|
@@ -152,16 +152,18 @@ class Fluent::RdsSlowlogWithSdkInput < Fluent::Input
   rescue AWS::RDS::Errors::InvalidParameterValue => e
     unless @marker == '0'
       File.open(@pos_file, 'w'){|fp|fp.sync = true; fp.write @marker}
-      @sns_client.publish({
+      p @sns_topic_arn
+      res = @sns_client.publish({
         :topic_arn => @sns_topic_arn,
         :subject => 'SNS Message',
         :message => {
-          :Time    => Time.at(timestamp).strftime('%Y-%m-%d %H:%M:%S %:z'),
+          :Time    => Time.now.strftime('%Y-%m-%d %H:%M:%S %:z'),
           :Method  => 'AWS::RDS::Client.download_db_log_file_portion',
           :Params  => @params,
           :Message => e.message,
         }.to_json,
       })
+      p res
       @marker = '0'
     end
   end
