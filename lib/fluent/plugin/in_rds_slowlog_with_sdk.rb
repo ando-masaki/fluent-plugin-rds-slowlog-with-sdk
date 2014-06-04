@@ -152,7 +152,6 @@ class Fluent::RdsSlowlogWithSdkInput < Fluent::Input
   rescue AWS::RDS::Errors::InvalidParameterValue => e
     unless @marker == '0'
       File.open(@pos_file, 'w'){|fp|fp.sync = true; fp.write @marker}
-      p @sns_topic_arn
       res = @sns_client.publish({
         :topic_arn => @sns_topic_arn,
         :subject => 'SNS Message',
@@ -163,7 +162,6 @@ class Fluent::RdsSlowlogWithSdkInput < Fluent::Input
           :Message => e.message,
         }.to_json,
       })
-      p res
       @marker = '0'
     end
   end
