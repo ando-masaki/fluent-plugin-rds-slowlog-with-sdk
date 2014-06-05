@@ -87,6 +87,7 @@ class Fluent::RdsSlowlogWithSdkInput < Fluent::Input
       end
       @hostname = Socket.gethostname
       @parser = MySlog.new
+      init_config
       init_aws_rds_client
       init_aws_sns_client
     rescue
