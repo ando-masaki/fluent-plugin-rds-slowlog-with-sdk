@@ -21,18 +21,22 @@ every 10 seconds from AWS RDS.
 
 ```config
 <source>
-  type                   rds_slowlog_with_sdk
-  tag                    [Unique tag for RDS Instance]
-  aws_access_key_id      [RDS Access Key]
-  aws_secret_access_key  [RDS Secret Key]
-  aws_rds_region         [RDS Region]
-  db_instance_identifier [RDS Instance Identifier]
-  log_file_name          [RDS Slow Log File Name]
-  timezone               [Timezone Where RDS Region Exists]
-  offset                 [Offset From UTC]
-  duration_sec           [Duration Seconds To Watch Slow Log File]
-  pos_file               [Position File Path (Default /tmp/rds-slowlog-with-sdk-[tag].pos)]
-  sns_topic_arn          [SNS Topic Arn For Exception Occured]]
+  type                       rds_slowlog_with_sdk
+  tag                        [Unique tag for RDS Instance]
+  aws_rds_access_key_id      [RDS Access Key]
+  aws_rds_secret_access_key  [RDS Secret Key]
+  aws_rds_region             [RDS Region]
+  db_instance_identifier     [RDS Instance Identifier]
+  log_file_name              [RDS Slow Log File Name]
+  prefix                     [Project Code]
+  timezone                   [Timezone Where RDS Region Exists]
+  offset                     [Offset From UTC]
+  duration_sec               [Duration Seconds To Watch Slow Log File]
+  pos_file                   [Position File Path (Default /tmp/rds-slowlog-with-sdk-[tag].pos)]
+  aws_sns_access_key_id      [SNS Access Key]
+  aws_sns_secret_access_key  [SNS Secret Key]
+  aws_sns_region             [SNS Region]
+  aws_sns_topic_arn          [SNS Topic Arn For Exception Occured]]
 </source>
 ```
 
@@ -40,17 +44,21 @@ every 10 seconds from AWS RDS.
 
 ```config
 <source>
-  type                   rds_slowlog_with_sdk
-  tag                    rds-slowlog-with-sdk
-  aws_access_key_id      [RDS Access Key]
-  aws_secret_access_key  [RDS Secret Key]
-  aws_rds_region         ap-northeast-1
-  db_instance_identifier my-rds-server
-  log_file_name          slowquery/mysql-slowquery.log
-  timezone               Asia/Tokyo
-  offset                 +09:00
-  duration_sec           10
-  sns_topic_arn          arn:aws:sns:ap-northeast-1:XXXXXXXXXXXX:sns-topic-arn
+  type                       rds_slowlog_with_sdk
+  tag                        rds-slowlog-with-sdk
+  aws_rds_access_key_id      [RDS Access Key]
+  aws_rds_secret_access_key  [RDS Secret Key]
+  aws_rds_region             ap-northeast-1
+  db_instance_identifier     my-rds-server
+  log_file_name              slowquery/mysql-slowquery.log
+  prefix                     some_project
+  timezone                   Asia/Tokyo
+  offset                     +09:00
+  duration_sec               10
+  aws_sns_access_key_id      [SNS Access Key]
+  aws_sns_secret_access_key  [SNS Secret Key]
+  aws_sns_region             ap-northeast-1
+  aws_sns_topic_arn          arn:aws:sns:ap-northeast-1:XXXXXXXXXXXX:sns-topic-arn
 </source>
 
 <match rds-slowlog-with-sdk>
