@@ -1,22 +1,26 @@
 class Fluent::RdsSlowlogWithSdkInput < Fluent::Input
-  Fluent::Plugin.register_input("rds_slowlog_with_sdk", self)
+  Fluent::Plugin.register_input("aws_rds_slowlog_with_sdk", self)
 
   # To support log_level option implemented by Fluentd v0.10.43
   unless method_defined?(:log)
     define_method("log") { $log }
   end
 
-  config_param :tag,                    :string,  :default => nil
-  config_param :aws_access_key_id,      :string,  :default => nil
-  config_param :aws_secret_access_key,  :string,  :default => nil
-  config_param :aws_rds_region,         :string,  :default => nil
-  config_param :db_instance_identifier, :string,  :default => nil
-  config_param :log_file_name,          :string,  :default => 'slowquery/mysql-slowquery.log'
-  config_param :timezone,               :string,  :default => 'UTC'
-  config_param :offset,                 :string,  :default => '+00:00'
-  config_param :duration_sec,           :integer, :default => 10
-  config_param :pos_file,               :string,  :default => nil
-  config_param :sns_topic_arn,          :string,  :default => nil
+  config_param :tag,                        :string,  :default => nil
+  config_param :aws_rds_access_key_id,      :string,  :default => nil
+  config_param :aws_rds_secret_access_key,  :string,  :default => nil
+  config_param :aws_rds_region,             :string,  :default => nil
+  config_param :db_instance_identifier,     :string,  :default => nil
+  config_param :log_file_name,              :string,  :default => 'slowquery/mysql-slowquery.log'
+  config_param :prefix,                     :string,  :default => nil
+  config_param :timezone,                   :string,  :default => 'UTC'
+  config_param :offset,                     :string,  :default => '+00:00'
+  config_param :duration_sec,               :integer, :default => 10
+  config_param :pos_file,                   :string,  :default => nil
+  config_param :aws_sns_access_key_id,      :string,  :default => nil
+  config_param :aws_sns_secret_access_key,  :string,  :default => nil
+  config_param :aws_sns_region,             :string,  :default => nil
+  config_param :aws_sns_topic_arn,          :string,  :default => nil
 
   def initialize
     super
@@ -24,6 +28,7 @@ class Fluent::RdsSlowlogWithSdkInput < Fluent::Input
     require 'myslog'
     require 'time'
     require 'json'
+    require 'socket'
   end
 
   def configure(conf)
@@ -32,20 +37,25 @@ class Fluent::RdsSlowlogWithSdkInput < Fluent::Input
       unless @tag
         raise Fluent::ConfigError.new("tag is required")
       end
-      unless @aws_access_key_id
-        raise Fluent::ConfigError.new("aws_access_key_id is required")
+      unless @aws_rds_access_key_id
+        raise Fluent::ConfigError.new("aws_rds_access_key_id is required")
       end
-      unless @aws_secret_access_key
-        raise Fluent::ConfigError.new("aws_secret_access_key is required")
+      unless @aws_rds_secret_access_key
+        raise Fluent::ConfigError.new("aws_rds_secret_access_key is required")
       end
       unless @aws_rds_region
         raise Fluent::ConfigError.new("aws_rds_region is required")
+      else
+        @aws_rds_endpoint = 'rds.%s.amazonaws.com' % [@aws_rds_region]
       end
       unless @db_instance_identifier
         raise Fluent::ConfigError.new("db_instance_identifier is required")
       end
       unless @log_file_name
         raise Fluent::ConfigError.new("log_file_name is required")
+      end
+      unless @prefix
+        raise Fluent::ConfigError.new("prefix is required")
       end
       unless @timezone
         raise Fluent::ConfigError.new("timezone is required")
@@ -61,9 +71,21 @@ class Fluent::RdsSlowlogWithSdkInput < Fluent::Input
       unless @pos_file
         @pos_file = '/tmp/fluent-plugin-rds-slowlog-with-sdk-%s.pos' % [@tag]
       end
-      unless @sns_topic_arn
-        raise Fluent::ConfigError.new("sns_topic_arn is required")
+      unless @aws_sns_access_key_id
+        raise Fluent::ConfigError.new("aws_sns_access_key_id is required")
       end
+      unless @aws_sns_secret_access_key
+        raise Fluent::ConfigError.new("aws_sns_secret_access_key is required")
+      end
+      unless @aws_sns_region
+        raise Fluent::ConfigError.new("aws_sns_region is required")
+      else
+        @aws_sns_endpoint = 'sns.%s.amazonaws.com' % [@aws_sns_region]
+      end
+      unless @aws_sns_topic_arn
+        raise Fluent::ConfigError.new("aws_sns_topic_arn is required")
+      end
+      @hostname = Socket.gethostname
       @parser = MySlog.new
       init_aws_rds_client
       init_aws_sns_client
@@ -86,23 +108,48 @@ class Fluent::RdsSlowlogWithSdkInput < Fluent::Input
 
   private
   
+  def init_config
+    unless @config
+      @config = {
+        :tag                        => @tag,
+        :aws_rds_access_key_id      => @aws_rds_access_key_id,
+        :aws_rds_secret_access_key  => @aws_rds_secret_access_key,
+        :aws_rds_region             => @aws_rds_region,
+        :aws_rds_endpoint           => @aws_rds_endpoint,
+        :db_instance_identifier     => @db_instance_identifier,
+        :log_file_name              => @log_file_name,
+        :prefix                     => @prefix,
+        :timezone                   => @timezone,
+        :offset                     => @offset,
+        :duration_sec               => @duration_sec,
+        :pos_file                   => @pos_file,
+        :aws_sns_access_key_id      => @aws_sns_access_key_id,
+        :aws_sns_secret_access_key  => @aws_sns_secret_access_key,
+        :aws_sns_region             => @aws_sns_region,
+        :aws_sns_endpoint           => @aws_sns_endpoint,
+        :aws_sns_topic_arn          => @aws_sns_topic_arn,
+        :hostname                   => @hostname,
+      }
+    end
+  end
+
   def init_aws_rds_client
-    unless @rds_client
-      @rds_client = AWS::RDS.new({
-        :access_key_id      => @aws_access_key_id,
-        :secret_access_key  => @aws_secret_access_key,
-        :rds_endpoint       => 'rds.%s.amazonaws.com' % [@aws_rds_region],
+    unless @aws_rds_client
+      @aws_rds_client = AWS::RDS.new({
+        :access_key_id      => @aws_rds_access_key_id,
+        :secret_access_key  => @aws_rds_secret_access_key,
+        :rds_endpoint       => @aws_rds_endpoint,
         :use_ssl            => true,
       }).client
     end
   end
 
   def init_aws_sns_client
-    unless @sns_client
-      @sns_client = AWS::SNS.new({
-        :access_key_id      => @aws_access_key_id,
-	:secret_access_key  => @aws_secret_access_key,
-	:sns_endpoint       => 'sns.%s.amazonaws.com' % [@aws_rds_region],
+    unless @aws_sns_client
+      @aws_sns_client = AWS::SNS.new({
+        :access_key_id      => @aws_sns_access_key_id,
+	:secret_access_key  => @aws_sns_secret_access_key,
+	:sns_endpoint       => @aws_sns_endpoint,
 	:use_ssl            => true,
       }).client
     end
@@ -131,7 +178,7 @@ class Fluent::RdsSlowlogWithSdkInput < Fluent::Input
       :log_file_name          => @log_file_name,
       :marker                 => @marker,
     }
-    responce = @rds_client.download_db_log_file_portion(@params)
+    responce = @aws_rds_client.download_db_log_file_portion(@params)
     unless responce[:log_file_data].nil?
       slow_log_data = @parser.parse(responce[:log_file_data])
       slow_log_data.each do |row|
@@ -152,11 +199,12 @@ class Fluent::RdsSlowlogWithSdkInput < Fluent::Input
   rescue AWS::RDS::Errors::InvalidParameterValue => e
     unless @marker == '0'
       File.open(@pos_file, 'w'){|fp|fp.sync = true; fp.write @marker}
-      res = @sns_client.publish({
-        :topic_arn => @sns_topic_arn,
+      res = @aws_sns_client.publish({
+        :topic_arn => @aws_sns_topic_arn,
         :subject => 'SNS Message',
         :message => {
           :Time    => Time.now.strftime('%Y-%m-%d %H:%M:%S %:z'),
+          :Config  => @config,
           :Method  => 'AWS::RDS::Client.download_db_log_file_portion',
           :Params  => @params,
           :Message => e.message,
@@ -166,3 +214,4 @@ class Fluent::RdsSlowlogWithSdkInput < Fluent::Input
     end
   end
 end
+
